@@ -1,0 +1,1 @@
+{"version":3,"file":"aiRateLimit.middleware.d.ts","sourceRoot":"","sources":["../../src/middlewares/aiRateLimit.middleware.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,QAAQ,EAAE,YAAY,EAAE,MAAM,SAAS,CAAC;AAK1D,eAAO,MAAM,mBAAmB,QAAS,OAAO,OAAO,QAAQ,QAAQ,YAAY,KAAG,IA4BrF,CAAC"}
