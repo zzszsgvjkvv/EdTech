@@ -13,7 +13,7 @@ const optionalAuth = (req, res, next) => {
     }
     next();
 };
-router.post('/vocabulary/generate-ai', aiVocab_controller_1.generateVocabWithImages);
+router.post('/vocabulary/generate-ai', aiVocab_controller_1.generateStickFigureImage);
 // ==========================================
 // PUBLIC & GUEST FEATURES
 // ==========================================

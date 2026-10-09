@@ -3,61 +3,44 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateVocabWithImages = exports.ai = void 0;
+exports.generateStickFigureImage = exports.generateVocabWithStickFigures = void 0;
 const genai_1 = require("@google/genai");
 const axios_1 = __importDefault(require("axios"));
-const dotenv_1 = __importDefault(require("dotenv"));
-// Initialize Gemini SDK
-dotenv_1.default.config();
-const apiKey = process.env.GEMINI_API_KEY;
-console.log('apiKey ${apiKey}');
-console.log(apiKey);
-if (!apiKey) {
-    throw new Error(' ${process.env.GEMINI_API_KEY } GEMINI_API_KEY is not defined in environment variables.');
-}
-exports.ai = new genai_1.GoogleGenAI({ apiKey });
-const generateVocabWithImages = async (req, res) => {
+const ai = new genai_1.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const generateVocabWithStickFigures = async (req, res) => {
     try {
-        const { category, targetLanguage, count = 10 } = req.body;
-        if (!category || !targetLanguage) {
-            res.status(400).json({ message: 'Category and targetLanguage are required' });
-            return;
-        }
-        // 1. Call Gemini with Structured JSON Schema output
-        const prompt = `Generate ${count} essential vocabulary items for a student learning ${targetLanguage} in the category "${category}". For each word, provide an English keyword suitable for searching an image.`;
-        const aiResponse = await exports.ai.models.generateContent({
+        const { category, targetLanguage, count = 10, imageStyle = 'stick figure drawing' } = req.body;
+        // 1. Tell Gemini to generate prompts suitable for simple stick-figure / doodle artwork
+        const prompt = `Generate ${count} vocabulary items for learning ${targetLanguage} in category "${category}". Provide a simple 1-3 word English subject for stick-figure drawing search.`;
+        const aiResponse = await ai.models.generateContent({
             model: 'gemini-3.8-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
                 responseSchema: {
                     type: genai_1.Type.ARRAY,
-                    description: 'List of vocabulary items',
                     items: {
                         type: genai_1.Type.OBJECT,
                         properties: {
-                            word: { type: genai_1.Type.STRING, description: 'Word or phrase in target language' },
-                            translation: { type: genai_1.Type.STRING, description: 'Translation in English' },
-                            exampleSentence: { type: genai_1.Type.STRING, description: 'Example sentence in target language' },
-                            englishImageKeyword: { type: genai_1.Type.STRING, description: 'Simple 1-2 word English query for image search (e.g. "red apple")' }
+                            word: { type: genai_1.Type.STRING },
+                            translation: { type: genai_1.Type.STRING },
+                            exampleSentence: { type: genai_1.Type.STRING },
+                            englishImageKeyword: { type: genai_1.Type.STRING, description: 'Subject word, e.g. "person waiting"' }
                         },
                         required: ['word', 'translation', 'exampleSentence', 'englishImageKeyword'],
                     },
                 },
             },
         });
-        const rawText = aiResponse.text;
-        if (!rawText) {
-            res.status(500).json({ message: 'Failed to receive response from Gemini AI' });
-            return;
-        }
-        const vocabList = JSON.parse(rawText);
-        // 2. Fetch Unsplash images in parallel for each generated word
+        const vocabList = JSON.parse(aiResponse.text || '[]');
+        // 2. Fetch Unsplash images appending your preferred character / doodle style
         const vocabWithImages = await Promise.all(vocabList.map(async (item) => {
             try {
+                // Combine the keyword with style modifiers: e.g., "person waiting stick figure drawing illustration"
+                const searchQuery = `${item.englishImageKeyword} ${imageStyle} illustration doodle minimal`;
                 const unsplashRes = await axios_1.default.get('https://api.unsplash.com/search/photos', {
                     params: {
-                        query: item.englishImageKeyword,
+                        query: searchQuery,
                         per_page: 1,
                         orientation: 'squarish',
                     },
@@ -69,20 +52,47 @@ const generateVocabWithImages = async (req, res) => {
                 return { ...item, imageUrl };
             }
             catch (error) {
-                // Fallback if Unsplash fails or rate limit is reached
                 return { ...item, imageUrl: null };
             }
         }));
         res.status(200).json({
             category,
             targetLanguage,
-            total: vocabWithImages.length,
+            style: imageStyle,
             data: vocabWithImages,
         });
     }
     catch (error) {
-        res.status(500).json({ message: error.message || 'Server error' });
+        res.status(500).json({ message: error.message });
     }
 };
-exports.generateVocabWithImages = generateVocabWithImages;
+exports.generateVocabWithStickFigures = generateVocabWithStickFigures;
+// Helper to generate a stick-figure illustration for a specific word
+const generateStickFigureImage = async (wordKeyword) => {
+    try {
+        const prompt = `A cute simple stick figure stickman doodle character depicting "${wordKeyword}". Black line art on plain white background, minimal kid-friendly cartoon illustration style.`;
+        const response = await ai.models.generateContent({
+            model: 'gemini-3.8-flash', // Gemini Image Generation model
+            contents: prompt,
+            config: {
+                // Request image output modality
+                responseModalities: ['image'],
+            },
+        });
+        // Extract base64 image data from response
+        const candidate = response.candidates?.[0];
+        const imagePart = candidate?.content?.parts?.find((p) => p.inlineData);
+        if (imagePart?.inlineData) {
+            const mimeType = imagePart.inlineData.mimeType || 'image/png';
+            const base64Data = imagePart.inlineData.data;
+            return `data:${mimeType};base64,${base64Data}`;
+        }
+        return null;
+    }
+    catch (error) {
+        console.error('Image generation error:', error);
+        return null;
+    }
+};
+exports.generateStickFigureImage = generateStickFigureImage;
 //# sourceMappingURL=aiVocab.controller.js.map
