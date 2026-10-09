@@ -90,34 +90,37 @@ export const generateVocabWithStickFigures = async (req: Request, res: Response)
 };
 
 // Helper to generate a stick-figure illustration for a specific word
+
+
+// Helper to generate a stick-figure illustration for a specific word
 export const generateStickFigureImage = async (wordKeyword: string): Promise<string | null> => {
   try {
     const prompt = `A cute simple stick figure stickman doodle character depicting "${wordKeyword}". Black line art on plain white background, minimal kid-friendly cartoon illustration style.`;
 
-    // 1. Switched model to 'imagen-3.0-generate-002' for dedicated image generation 
-    // 2. Wrapped call with our 503 retry helper
+    // Use .generateImages instead of .generateContent for Imagen models
     const response = await callWithRetry(() => 
-      ai.models.generateContent({
+      ai.models.generateImages({
         model: 'imagen-3.0-generate-002', 
-        contents: prompt,
+        prompt: prompt, // Change 'contents' to 'prompt' for the image endpoint
         config: {
-          responseModalities: ['image'],
+          numberOfImages: 1,
+          outputMimeType: 'image/png',
+          aspectRatio: '1:1',
         },
       })
     );
 
-    const candidate = response.candidates?.[0];
-const imagePart = candidate?.content?.parts?.find((p: any) => p.inlineData);
+    // Extract the image from the dedicated image response array
+    const base64Image = response.generatedImages?.[0]?.image?.imageBytes;
 
-    if (imagePart?.inlineData) {
-      const mimeType = imagePart.inlineData.mimeType || 'image/png';
-      const base64Data = imagePart.inlineData.data;
-      return `data:${mimeType};base64,${base64Data}`;
+    if (base64Image) {
+      return `data:image/png;base64,${base64Image}`;
     }
 
     return null;
   } catch (error) {
     console.error('Image generation error after retries:', error);
-    return null; // Gracefully handles failure so the app doesn't crash
+    return null; // Gracefully handle failures so the backend keeps running safely
   }
 };
+
