@@ -6,7 +6,7 @@ import {
   saveVocabulary, 
   getSavedVocabulary 
 } from '../controllers/vocabulary.controller';
-import { generateStickFigureImage } from '../controllers/aiVocab.controller';
+import { generateVocabWithStickFigures } from '../controllers/aiVocab.controller';
 
 const router = Router();
 
@@ -21,7 +21,7 @@ const optionalAuth = (req: any, res: any, next: any) => {
 
 
 
-router.post('/vocabulary/generate-ai', generateStickFigureImage);
+router.post('/vocabulary/generate-ai', generateVocabWithStickFigures);
 
 // ==========================================
 // PUBLIC & GUEST FEATURES
