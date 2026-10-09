@@ -93,34 +93,41 @@ export const generateVocabWithStickFigures = async (req: Request, res: Response)
 
 
 // Helper to generate a stick-figure illustration for a specific word
+// Helper to generate a stick-figure illustration for a specific word via inline SVG
 export const generateStickFigureImage = async (wordKeyword: string): Promise<string | null> => {
   try {
-    const prompt = `A cute simple stick figure stickman doodle character depicting "${wordKeyword}". Black line art on plain white background, minimal kid-friendly cartoon illustration style.`;
+    // We prompt Gemini to draw using code paths instead of binary pixel values
+    const prompt = `Create a raw, minimal valid HTML SVG string for a clean stick figure doodle character depicting: "${wordKeyword}". 
+    Guidelines:
+    - Use black stroke outlines (#000000) on a transparent or white background.
+    - Keep it minimal, simple, kid-friendly cartoon drawing style.
+    - Output ONLY valid, raw, minified SVG code wrapped in <svg>...</svg>. 
+    - Do NOT wrap the response in markdown blocks like \`\`\`xml or \`\`\`html. Begin directly with <svg and end with </svg>.`;
 
-    // Use .generateImages instead of .generateContent for Imagen models
     const response = await callWithRetry(() => 
-      ai.models.generateImages({
-        model: 'imagen-3.0-generate-002', 
-        prompt: prompt, // Change 'contents' to 'prompt' for the image endpoint
-        config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/png',
-          aspectRatio: '1:1',
-        },
+      ai.models.generateContent({
+        model: 'gemini-3.8-flash', // Uses your working standard content model
+        contents: prompt
       })
     );
 
-    // Extract the image from the dedicated image response array
-    const base64Image = response.generatedImages?.[0]?.image?.imageBytes;
+    let svgString = response.text?.trim() || "";
 
-    if (base64Image) {
-      return `data:image/png;base64,${base64Image}`;
+    // Clean up markdown block leaks if the LLM adds them by accident
+    if (svgString.startsWith("```")) {
+      svgString = svgString.replace(/^```[a-zA-Z]*\n?/, "").replace(/```\$/, "").trim();
+    }
+
+    if (svgString.startsWith("<svg")) {
+      // Safely encode the raw vector graphic code straight into a browser-readable data URL string
+      const base64Data = Buffer.from(svgString).toString('base64');
+      return `data:image/svg+xml;base64,${base64Data}`;
     }
 
     return null;
   } catch (error) {
-    console.error('Image generation error after retries:', error);
-    return null; // Gracefully handle failures so the backend keeps running safely
+    console.error('Vector generation error after retries:', error);
+    return null; // Gracefully fallback without breaking the web app server
   }
 };
 
