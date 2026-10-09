@@ -7,12 +7,30 @@ exports.generateStickFigureImage = exports.generateVocabWithStickFigures = void 
 const genai_1 = require("@google/genai");
 const axios_1 = __importDefault(require("axios"));
 const ai = new genai_1.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Helper function to retry Google Gen AI calls if a 503 error is thrown
+const callWithRetry = async (fn, retries = 3, delayMs = 1500) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        }
+        catch (error) {
+            // If it's a 503 Service Unavailable and we have retries left, wait and try again
+            if (error.status === 503 && i < retries - 1) {
+                console.warn(`Google Gen AI overloaded (503). Retrying in ${delayMs}ms... (Attempt ${i + 1}/${retries})`);
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+                delayMs *= 2; // Exponential backoff
+                continue;
+            }
+            throw error; // Rethrow original error if not a 503 or max retries reached
+        }
+    }
+};
 const generateVocabWithStickFigures = async (req, res) => {
     try {
         const { category, targetLanguage, count = 10, imageStyle = 'stick figure drawing' } = req.body;
-        // 1. Tell Gemini to generate prompts suitable for simple stick-figure / doodle artwork
         const prompt = `Generate ${count} vocabulary items for learning ${targetLanguage} in category "${category}". Provide a simple 1-3 word English subject for stick-figure drawing search.`;
-        const aiResponse = await ai.models.generateContent({
+        // Wrap the text generation call with our retry helper
+        const aiResponse = await callWithRetry(() => ai.models.generateContent({
             model: 'gemini-3.8-flash',
             contents: prompt,
             config: {
@@ -31,12 +49,10 @@ const generateVocabWithStickFigures = async (req, res) => {
                     },
                 },
             },
-        });
+        }));
         const vocabList = JSON.parse(aiResponse.text || '[]');
-        // 2. Fetch Unsplash images appending your preferred character / doodle style
         const vocabWithImages = await Promise.all(vocabList.map(async (item) => {
             try {
-                // Combine the keyword with style modifiers: e.g., "person waiting stick figure drawing illustration"
                 const searchQuery = `${item.englishImageKeyword} ${imageStyle} illustration doodle minimal`;
                 const unsplashRes = await axios_1.default.get('https://api.unsplash.com/search/photos', {
                     params: {
@@ -71,15 +87,15 @@ exports.generateVocabWithStickFigures = generateVocabWithStickFigures;
 const generateStickFigureImage = async (wordKeyword) => {
     try {
         const prompt = `A cute simple stick figure stickman doodle character depicting "${wordKeyword}". Black line art on plain white background, minimal kid-friendly cartoon illustration style.`;
-        const response = await ai.models.generateContent({
-            model: 'gemini-3.8-flash', // Gemini Image Generation model
+        // 1. Switched model to 'imagen-3.0-generate-002' for dedicated image generation 
+        // 2. Wrapped call with our 503 retry helper
+        const response = await callWithRetry(() => ai.models.generateContent({
+            model: 'imagen-3.0-generate-002',
             contents: prompt,
             config: {
-                // Request image output modality
                 responseModalities: ['image'],
             },
-        });
-        // Extract base64 image data from response
+        }));
         const candidate = response.candidates?.[0];
         const imagePart = candidate?.content?.parts?.find((p) => p.inlineData);
         if (imagePart?.inlineData) {
@@ -90,8 +106,8 @@ const generateStickFigureImage = async (wordKeyword) => {
         return null;
     }
     catch (error) {
-        console.error('Image generation error:', error);
-        return null;
+        console.error('Image generation error after retries:', error);
+        return null; // Gracefully handles failure so the app doesn't crash
     }
 };
 exports.generateStickFigureImage = generateStickFigureImage;
