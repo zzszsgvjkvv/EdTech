@@ -1,11 +1,12 @@
 import { initializeApp, cert } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
+
+// This will load serviceAccountKey.json from the root directory locally 
+// and from Render's injected Secret File during production.
 import serviceAccount from './serviceAccountKey.json';
 
-// Initialize the Firebase Admin App cleanly
 export const firebaseApp = initializeApp({
   credential: cert(serviceAccount as any),
 });
 
-// Export messaging service
 export const messaging = getMessaging(firebaseApp);
