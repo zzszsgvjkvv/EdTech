@@ -42,17 +42,19 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Find user by email
-    const user = await User.findOne({ email });
+   const user = await User.findOne({ email }).select('+password'); 
     if (!user) {
       res.status(401).json({ message: 'Invalid email or password' });
       return;
     }
 
-    // Compare password
-  if (!user || !user.password) {
+// 2. Safely verify using your schema method
+if (!user || !(await user.comparePassword(password))) {
   res.status(401).json({ message: 'Invalid email or password' });
   return;
 }
+    // Compare password
+
 
 const isMatch = await bcrypt.compare(password, user.password);
 
