@@ -169,7 +169,7 @@ export const getMessages = async (req: Request, res: Response): Promise<void> =>
 
         // Generate content using Gemini with Structured Outputs
         const geminiResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.8-flash',
             contents: formattedHistory,
             config: {
                 systemInstruction: 'You are a friendly language tutor. Naturally extract 1-3 useful vocabulary words from the conversation context and return them in the required structured JSON format.',
