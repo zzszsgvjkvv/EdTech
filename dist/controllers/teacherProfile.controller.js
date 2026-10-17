@@ -2,36 +2,36 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getOnboardingStatus = exports.updateTeacherProfile = void 0;
 const teacherProfile_model_1 = require("../models/teacherProfile.model");
+const tutor_model_1 = require("../models/tutor.model");
+const mongoose_1 = require("mongoose");
 // Endpoint for Step 2: Teacher Profile Upsert
 const updateTeacherProfile = async (req, res) => {
     try {
-        const userId = req.user?._id;
+        const userId = req.user?._id; // Ensure this is coming from authenticate middleware
+        const { bio, expertise, hourlyRate, availability, isOnline } = req.body;
         if (!userId) {
-            res.status(401).json({ message: 'Unauthorized' });
+            res.status(401).json({ message: 'Unauthorized user ID' });
             return;
         }
-        const { headline, bio, hourlyRate, languagesTaught, videoIntroUrl } = req.body;
-        // Validate required onboarding fields
-        if (!headline || !bio || !hourlyRate || !languagesTaught?.length) {
-            res.status(400).json({ message: 'Missing required profile fields' });
-            return;
-        }
-        const profile = await teacherProfile_model_1.TeacherProfile.findOneAndUpdate({ userId }, {
-            userId,
-            headline,
-            bio,
-            hourlyRate,
-            languagesTaught,
-            videoIntroUrl,
-            isProfileComplete: true, // Mark step 2 as completed
-        }, { new: true, upsert: true });
+        // Upsert using explicit ObjectId conversion to prevent duplicate/mismatched keys
+        const updatedTutor = await tutor_model_1.Tutor.findOneAndUpdate({ userId: new mongoose_1.Types.ObjectId(userId) }, {
+            $set: {
+                userId: new mongoose_1.Types.ObjectId(userId), // ensure it's saved as an ObjectId
+                ...(bio && { bio }),
+                ...(expertise && { expertise }),
+                ...(hourlyRate !== undefined && { hourlyRate }),
+                ...(availability && { availability }),
+                ...(isOnline !== undefined && { isOnline }),
+            },
+        }, { new: true, upsert: true, runValidators: true });
         res.status(200).json({
-            message: 'Teacher profile details saved successfully. Next step: Set availability.',
-            profile,
+            success: true,
+            message: 'Teacher profile and availability updated successfully',
+            data: updatedTutor,
         });
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        res.status(500).json({ message: error.message || 'Server error updating profile' });
     }
 };
 exports.updateTeacherProfile = updateTeacherProfile;

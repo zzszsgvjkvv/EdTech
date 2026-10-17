@@ -49,4 +49,14 @@ export const authorize = (...allowedRoles: UserRole[]) => {
 
     next();
   };
+
+};
+export const requireRole = (allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
+      res.status(403).json({ message: 'Access denied. You do not have permission for this action.' });
+      return;
+    }
+    next();
+  };
 };

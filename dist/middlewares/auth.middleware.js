@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.authorize = exports.authenticate = void 0;
+exports.requireRole = exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const user_model_1 = require("../models/user.model");
 const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_jwt_key';
@@ -45,4 +45,14 @@ const authorize = (...allowedRoles) => {
     };
 };
 exports.authorize = authorize;
+const requireRole = (allowedRoles) => {
+    return (req, res, next) => {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            res.status(403).json({ message: 'Access denied. You do not have permission for this action.' });
+            return;
+        }
+        next();
+    };
+};
+exports.requireRole = requireRole;
 //# sourceMappingURL=auth.middleware.js.map

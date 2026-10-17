@@ -1,47 +1,44 @@
 import { Request, Response } from 'express';
 import { TeacherProfile } from '../models/teacherProfile.model';
-
+import { Tutor } from '../models/tutor.model';
+import { Types } from 'mongoose';
 // Endpoint for Step 2: Teacher Profile Upsert
+
 export const updateTeacherProfile = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?._id;
+    const userId = req.user?._id; // Ensure this is coming from authenticate middleware
+    const { bio, expertise, hourlyRate, availability, isOnline } = req.body;
 
     if (!userId) {
-      res.status(401).json({ message: 'Unauthorized' });
+      res.status(401).json({ message: 'Unauthorized user ID' });
       return;
     }
 
-    const { headline, bio, hourlyRate, languagesTaught, videoIntroUrl } = req.body;
-
-    // Validate required onboarding fields
-    if (!headline || !bio || !hourlyRate || !languagesTaught?.length) {
-      res.status(400).json({ message: 'Missing required profile fields' });
-      return;
-    }
-
-    const profile = await TeacherProfile.findOneAndUpdate(
-      { userId } as any,
+    // Upsert using explicit ObjectId conversion to prevent duplicate/mismatched keys
+    const updatedTutor = await Tutor.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
       {
-        userId,
-        headline,
-        bio,
-        hourlyRate,
-        languagesTaught,
-        videoIntroUrl,
-        isProfileComplete: true, // Mark step 2 as completed
+        $set: {
+          userId: new Types.ObjectId(userId), // ensure it's saved as an ObjectId
+          ...(bio && { bio }),
+          ...(expertise && { expertise }),
+          ...(hourlyRate !== undefined && { hourlyRate }),
+          ...(availability && { availability }),
+          ...(isOnline !== undefined && { isOnline }),
+        },
       },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
 
     res.status(200).json({
-      message: 'Teacher profile details saved successfully. Next step: Set availability.',
-      profile,
+      success: true,
+      message: 'Teacher profile and availability updated successfully',
+      data: updatedTutor,
     });
   } catch (error: any) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error.message || 'Server error updating profile' });
   }
 };
-
 // Optional: Get current teacher onboarding state for frontend redirection
 export const getOnboardingStatus = async (req: Request, res: Response): Promise<void> => {
   try {

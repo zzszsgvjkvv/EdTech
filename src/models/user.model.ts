@@ -10,6 +10,7 @@ export enum AllowedLanguages {
 export type UserRole = 'student' | 'teacher' | 'admin';
 
 export interface IUser extends Document {
+    fcmToken?:string;
     name: string;
     email: string;
     password?: string;
@@ -21,6 +22,7 @@ export interface IUser extends Document {
 
 const userSchema = new Schema<IUser>(
     {
+        fcmToken: { type: String, default: null },
         name: { type: String, required: true },
         email: { type: String, required: true, unique: true, lowercase: true },
         password: { type: String, required: true, select: false },

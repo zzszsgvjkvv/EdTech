@@ -8,6 +8,7 @@ export declare enum AllowedLanguages {
 }
 export type UserRole = 'student' | 'teacher' | 'admin';
 export interface IUser extends Document {
+    fcmToken?: string;
     name: string;
     email: string;
     password?: string;

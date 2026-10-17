@@ -5,6 +5,8 @@ const auth_middleware_1 = require("../middlewares/auth.middleware");
 const aiRateLimit_middleware_1 = require("../middlewares/aiRateLimit.middleware");
 const vocabulary_controller_1 = require("../controllers/vocabulary.controller");
 const aiVocab_controller_1 = require("../controllers/aiVocab.controller");
+const cloudinary_config_1 = require("../config/cloudinary.config");
+const tutor_controller_1 = require("../controllers/tutor.controller");
 const router = (0, express_1.Router)();
 // Optional Auth Middleware: Attaches req.user if JWT is valid, but allows execution if missing
 const optionalAuth = (req, res, next) => {
@@ -13,6 +15,11 @@ const optionalAuth = (req, res, next) => {
     }
     next();
 };
+// ==========================================
+// PROTECTED STUDENT FEATURES (Requires Authentication)
+// ==========================================
+router.post('/vocabulary/save', auth_middleware_1.authenticate, cloudinary_config_1.upload.single('image'), vocabulary_controller_1.saveVocabulary);
+router.get('/vocabulary', auth_middleware_1.authenticate, vocabulary_controller_1.getSavedVocabulary);
 router.post('/vocabulary/generate-ai', aiVocab_controller_1.generateStickFigureImage);
 // ==========================================
 // PUBLIC & GUEST FEATURES
@@ -26,10 +33,8 @@ router.post('/ai-chat', optionalAuth, aiRateLimit_middleware_1.enforceAiChatLimi
 });
 // AI Vocabulary Generator (Guests can generate and view lists, but CANNOT save)
 router.post('/vocabulary/generate', vocabulary_controller_1.generateCategoryVocabulary);
-// ==========================================
-// PROTECTED STUDENT FEATURES (Requires Authentication)
-// ==========================================
-router.post('/vocabulary/save', auth_middleware_1.authenticate, vocabulary_controller_1.saveVocabulary);
-router.get('/vocabulary', auth_middleware_1.authenticate, vocabulary_controller_1.getSavedVocabulary);
+// Secure routes so authenticated students can search and view tutors
+router.get('/tutors', auth_middleware_1.authenticate, tutor_controller_1.getTutors);
+router.get('/tutors/:id', auth_middleware_1.authenticate, tutor_controller_1.getTutorById);
 exports.default = router;
 //# sourceMappingURL=student.routes.js.map

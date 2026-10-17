@@ -15,6 +15,7 @@ var AllowedLanguages;
     AllowedLanguages["GERMAN"] = "de";
 })(AllowedLanguages || (exports.AllowedLanguages = AllowedLanguages = {}));
 const userSchema = new mongoose_1.Schema({
+    fcmToken: { type: String, default: null },
     name: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true },
     password: { type: String, required: true, select: false },

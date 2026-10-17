@@ -5,9 +5,15 @@ const teacherProfile_controller_1 = require("../controllers/teacherProfile.contr
 const teacher_controller_1 = require("../controllers/teacher.controller");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const profileGuard_middleware_1 = require("../middlewares/profileGuard.middleware");
+const vocabulary_controller_1 = require("../controllers/vocabulary.controller");
+const cloudinary_config_1 = require("../config/cloudinary.config");
 const router = (0, express_1.Router)();
-// Base Guard: All endpoints below require a valid token and 'teacher' role
 router.use(auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('teacher'));
+router.use((0, auth_middleware_1.requireRole)(['teacher', 'admin']));
+// Vocabulary routes
+router.post('/vocabulary', cloudinary_config_1.upload.single('image'), vocabulary_controller_1.saveVocabulary);
+// 🆕 Teacher Profile & Availability route
+// Base Guard: All endpoints below require a valid token and 'teacher' role
 // Check current onboarding progress (helps frontend route the user)
 router.get('/onboarding-status', teacherProfile_controller_1.getOnboardingStatus);
 // STEP 2: Fill profile details (headline, rate, bio)

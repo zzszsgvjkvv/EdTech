@@ -84,30 +84,30 @@ const generateVocabWithStickFigures = async (req, res) => {
 };
 exports.generateVocabWithStickFigures = generateVocabWithStickFigures;
 // Helper to generate a stick-figure illustration for a specific word
-// Helper to generate a stick-figure illustration for a specific word
 const generateStickFigureImage = async (wordKeyword) => {
     try {
         const prompt = `A cute simple stick figure stickman doodle character depicting "${wordKeyword}". Black line art on plain white background, minimal kid-friendly cartoon illustration style.`;
-        // Use .generateImages instead of .generateContent for Imagen models
-        const response = await callWithRetry(() => ai.models.generateImages({
+        // 1. Switched model to 'imagen-3.0-generate-002' for dedicated image generation 
+        // 2. Wrapped call with our 503 retry helper
+        const response = await callWithRetry(() => ai.models.generateContent({
             model: 'imagen-3.0-generate-002',
-            prompt: prompt, // Change 'contents' to 'prompt' for the image endpoint
+            contents: prompt,
             config: {
-                numberOfImages: 1,
-                outputMimeType: 'image/png',
-                aspectRatio: '1:1',
+                responseModalities: ['image'],
             },
         }));
-        // Extract the image from the dedicated image response array
-        const base64Image = response.generatedImages?.[0]?.image?.imageBytes;
-        if (base64Image) {
-            return `data:image/png;base64,${base64Image}`;
+        const candidate = response.candidates?.[0];
+        const imagePart = candidate?.content?.parts?.find((p) => p.inlineData);
+        if (imagePart?.inlineData) {
+            const mimeType = imagePart.inlineData.mimeType || 'image/png';
+            const base64Data = imagePart.inlineData.data;
+            return `data:${mimeType};base64,${base64Data}`;
         }
         return null;
     }
     catch (error) {
         console.error('Image generation error after retries:', error);
-        return null; // Gracefully handle failures so the backend keeps running safely
+        return null; // Gracefully handles failure so the app doesn't crash
     }
 };
 exports.generateStickFigureImage = generateStickFigureImage;

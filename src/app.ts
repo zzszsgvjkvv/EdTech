@@ -8,13 +8,17 @@ import authRoutes from './routes/auth.routes';
 import teacherRoutes from './routes/teacher.routes';
 import studentRoutes from './routes/student.routes';
 
+import notification from './routes/notification.routes';
+
+
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// Route Registrations
+// Route 
+app.use('/notification',notification ); 
 app.use('/api/public', publicRoutes);   // Unprotected
 app.use('/api/auth', authRoutes);       // Login / Register
 app.use('/api/teacher', teacherRoutes); // Authenticated + Authorized ('teacher')
