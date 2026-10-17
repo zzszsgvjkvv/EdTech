@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware';
+import { authenticate,requireRole } from '../middlewares/auth.middleware';
 import { enforceAiChatLimits } from '../middlewares/aiRateLimit.middleware';
 import {
   generateCategoryVocabulary,
@@ -9,7 +9,13 @@ import {
 import { generateStickFigureImage } from '../controllers/aiVocab.controller';
 import { upload } from '../config/cloudinary.config';
 import { getTutors, getTutorById } from '../controllers/tutor.controller';
-
+import { 
+  getCategories, 
+  getConversations, 
+  createConversation, 
+  getMessages 
+} from '../controllers/ai.controller';
+import { sendAiMessage } from '../controllers/ai.controller';
 const router = Router();
 
 // Optional Auth Middleware: Attaches req.user if JWT is valid, but allows execution if missing
@@ -24,6 +30,18 @@ const optionalAuth = (req: any, res: any, next: any) => {
 
 
 
+
+
+
+
+// Apply student authentication and role check to all AI routes
+router.use(authenticate, requireRole(['student']));
+
+router.get('/categories', getCategories);
+router.get('/conversations', getConversations);
+router.post('/conversations', createConversation);
+router.get('/conversations/:id/messages', getMessages);
+router.post('/conversations/:id/messages', sendAiMessage);
 
 
 // ==========================================
