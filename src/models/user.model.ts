@@ -1,5 +1,6 @@
 import { Schema, model, Document } from 'mongoose';
 import bcrypt from 'bcryptjs';
+
 export enum AllowedLanguages {
   ENGLISH = 'en',
   FRENCH = 'fr',
