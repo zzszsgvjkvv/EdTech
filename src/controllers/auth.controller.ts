@@ -41,43 +41,33 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Find user by email
-   const user = await User.findOne({ email }).select('+password'); 
-    if (!user) {
+    // 1. Find user by email and explicitly pull the hidden password
+    const user = await User.findOne({ email }).select('+password'); 
+    
+    // 2. Safely verify credentials using your schema's instance method
+    if (!user || !(await user.comparePassword(password))) {
       res.status(401).json({ message: 'Invalid email or password' });
       return;
     }
 
-// 2. Safely verify using your schema method
-if (!user || !(await user.comparePassword(password))) {
-  res.status(401).json({ message: 'Invalid email or password' });
-  return;
-}
-    // Compare password
-
-
-const isMatch = await bcrypt.compare(password, user.password!);
-
-if (!isMatch) {
-  res.status(401).json({ message: 'Invalid email or password' });
-  return;
-}
-
     // Generate JWT token
     const token = jwt.sign(
-      { _id: user._id,
-         id: user._id,
-        role: user.role, email: user.email },
-     JWT_SECRET,
+      { 
+        _id: user._id,
+        id: user._id,
+        role: user.role, 
+        email: user.email 
+      },
+      JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     // If user is a teacher, fetch their tutor profile & availability details
     let profileData = null;
     if (user.role === 'teacher') {
-console.log(`teacher ${user._id}`);
-profileData = await Tutor.findOne({ userId: user._id.toString() });
-console.log("teacher profile data:", profileData);
+      console.log(`teacher ${user._id}`);
+      profileData = await Tutor.findOne({ userId: user._id.toString() });
+      console.log("teacher profile data:", profileData);
     }
 
     res.status(200).json({
@@ -89,7 +79,6 @@ console.log("teacher profile data:", profileData);
         email: user.email,
         role: user.role,
       },
-      // Include extended profile data if it exists
       profile: profileData || null,
     });
   } catch (error: any) {
