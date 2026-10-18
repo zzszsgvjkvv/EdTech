@@ -16,6 +16,8 @@ import {
   getMessages 
 } from '../controllers/ai.controller';
 import { sendAiMessage } from '../controllers/ai.controller';
+import aiRoutes from '../features/ai/ai.routes'; // adjust relative path to your project
+
 const router = Router();
 
 // Optional Auth Middleware: Attaches req.user if JWT is valid, but allows execution if missing
@@ -43,7 +45,7 @@ router.post('/conversations', createConversation);
 router.get('/conversations/:id/messages', getMessages);
 router.post('/conversations/:id/messages', sendAiMessage);
 
-
+router.use('/ai', aiRoutes);
 // ==========================================
 // PROTECTED STUDENT FEATURES (Requires Authentication)
 // ==========================================

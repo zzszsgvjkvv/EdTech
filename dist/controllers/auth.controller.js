@@ -17,7 +17,10 @@ const register = async (req, res) => {
             res.status(400).json({ message: 'Email already registered' });
             return;
         }
-        const user = await user_model_1.User.create({ name, email, password, role, nativeLanguage, targetLanguage });
+        const salt = await bcryptjs_1.default.genSalt(10);
+        const hashedPassword = await bcryptjs_1.default.hash(password, salt);
+        const user = await user_model_1.User.create({ name, email, password: password, // Use the hashed password
+            role, nativeLanguage, targetLanguage });
         const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
         res.status(201).json({
             message: 'User registered successfully',
@@ -37,22 +40,20 @@ const login = async (req, res) => {
             res.status(400).json({ message: 'Email and password are required' });
             return;
         }
-        // Find user by email
-        const user = await user_model_1.User.findOne({ email });
-        if (!user) {
-            res.status(401).json({ message: 'Invalid email or password' });
-            return;
-        }
-        // Compare password
-        const isMatch = bcryptjs_1.default.compare(password, user.password ?? "");
-        if (!isMatch) {
+        // 1. Find user by email and explicitly pull the hidden password
+        const user = await user_model_1.User.findOne({ email }).select('+password');
+        // 2. Safely verify credentials using your schema's instance method
+        if (!user || !(await user.comparePassword(password))) {
             res.status(401).json({ message: 'Invalid email or password' });
             return;
         }
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ _id: user._id,
+        const token = jsonwebtoken_1.default.sign({
+            _id: user._id,
             id: user._id,
-            role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+            role: user.role,
+            email: user.email
+        }, JWT_SECRET, { expiresIn: '7d' });
         // If user is a teacher, fetch their tutor profile & availability details
         let profileData = null;
         if (user.role === 'teacher') {
@@ -69,7 +70,6 @@ const login = async (req, res) => {
                 email: user.email,
                 role: user.role,
             },
-            // Include extended profile data if it exists
             profile: profileData || null,
         });
     }

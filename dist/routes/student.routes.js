@@ -1,4 +1,7 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_middleware_1 = require("../middlewares/auth.middleware");
@@ -7,6 +10,9 @@ const vocabulary_controller_1 = require("../controllers/vocabulary.controller");
 const aiVocab_controller_1 = require("../controllers/aiVocab.controller");
 const cloudinary_config_1 = require("../config/cloudinary.config");
 const tutor_controller_1 = require("../controllers/tutor.controller");
+const ai_controller_1 = require("../controllers/ai.controller");
+const ai_controller_2 = require("../controllers/ai.controller");
+const ai_routes_1 = __importDefault(require("../features/ai/ai.routes")); // adjust relative path to your project
 const router = (0, express_1.Router)();
 // Optional Auth Middleware: Attaches req.user if JWT is valid, but allows execution if missing
 const optionalAuth = (req, res, next) => {
@@ -15,6 +21,14 @@ const optionalAuth = (req, res, next) => {
     }
     next();
 };
+// Apply student authentication and role check to all AI routes
+router.use(auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)(['student']));
+router.get('/categories', ai_controller_1.getCategories);
+router.get('/conversations', ai_controller_1.getConversations);
+router.post('/conversations', ai_controller_1.createConversation);
+router.get('/conversations/:id/messages', ai_controller_1.getMessages);
+router.post('/conversations/:id/messages', ai_controller_2.sendAiMessage);
+router.use('/ai', ai_routes_1.default);
 // ==========================================
 // PROTECTED STUDENT FEATURES (Requires Authentication)
 // ==========================================
