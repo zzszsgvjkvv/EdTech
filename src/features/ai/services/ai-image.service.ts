@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { AIHttpError } from '../ai.errors';
-import { getOpenAIClientForImages } from './openai-ai.service';
+import { getOpenAIClientForImages } from './xopenai-ai.service';
 import { uploadAIImageToCloudinary } from './cloudinary.service';
 
 export function makeIllustrationCacheKey(word: string, translation: string): string {

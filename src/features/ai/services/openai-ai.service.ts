@@ -1,6 +1,7 @@
-import OpenAI from 'openai';
+import { GoogleGenAI } from '@google/genai';
 import { AIHttpError } from '../ai.errors';
 import { MAX_MESSAGES_PER_CONTEXT } from '../ai.constants';
+
 
 export interface TutorHistoryMessage {
   role: 'user' | 'assistant';
@@ -20,41 +21,18 @@ export interface TutorReply {
   vocabularyToSave: VocabularyCandidate[];
 }
 
-let client: OpenAI | null = null;
+let aiClient: GoogleGenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
-  if (client) return client;
-  const apiKey = process.env.OPENAI_API_KEY;
+function getGeminiClient(): GoogleGenAI {
+  if (aiClient) return aiClient;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new AIHttpError(503, 'AI service is not configured. Set OPENAI_API_KEY on the server.');
+    throw new AIHttpError(503, 'AI service is not configured. Set GEMINI_API_KEY on the server.');
   }
-  client = new OpenAI({ apiKey, timeout: 60_000, maxRetries: 2 });
-  return client;
+  // تهيئة عميل جيميناي الرسمي باستخدام الحزمة المحدثة @google/genai
+  aiClient = new GoogleGenAI({ apiKey });
+  return aiClient;
 }
-
-const tutorResponseSchema = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    reply: { type: 'string' },
-    vocabularyToSave: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        properties: {
-          word: { type: 'string' },
-          translation: { type: 'string' },
-          exampleSentence: { type: ['string', 'null'] },
-          category: { type: ['string', 'null'] },
-          targetLanguage: { type: 'string' },
-        },
-        required: ['word', 'translation', 'exampleSentence', 'category', 'targetLanguage'],
-      },
-    },
-  },
-  required: ['reply', 'vocabularyToSave'],
-} as const;
 
 function validateTutorReply(value: unknown): TutorReply {
   if (!value || typeof value !== 'object') {
@@ -89,10 +67,7 @@ export async function generateTutorReply(input: {
   targetLanguage: string;
   nativeLanguage?: string | null;
 }): Promise<TutorReply> {
-  const model = process.env.OPENAI_TEXT_MODEL;
-  if (!model) {
-    throw new AIHttpError(503, 'AI service is not configured. Set OPENAI_TEXT_MODEL on the server.');
-  }
+  const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash';
 
   const history = input.history.slice(-MAX_MESSAGES_PER_CONTEXT);
   const instructions = [
@@ -108,24 +83,25 @@ export async function generateTutorReply(input: {
   ].join('\n');
 
   try {
-    // تصحيح: استخدام الدالة الرسمية الصحيحة chat.completions.create
-    const response = await getOpenAIClient().chat.completions.create({
+    // استدعاء جيميناي لتوليد المحتوى المهيكل
+    const response = await getGeminiClient().models.generateContent({
       model,
-      // دمج التوجيهات (System) مع سياق المحادثة (History)
-      messages: [
-        { role: 'system', content: instructions },
+      contents: [
+        // في جيميناي يتم تحويل دور المساعد من assistant إلى model
         ...history.map((message) => ({
-          role: message.role,
-          content: message.content,
+          role: message.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: message.content }],
         })),
       ],
-      // تصحيح هيكلية الـ Structured Outputs (JSON Schema)
-      response_format: {
-        type: 'json_object', // أو 'json_schema' بناءً على تفضيلك، لكن تأكد من دعم الموديل المختار له
+      config: {
+        // تمرير التعليمات الصارمة للنظام كـ systemInstruction منفصل ومستقل عن مصفوفة الـ contents
+        systemInstruction: instructions,
+        // إجبار الموديل على إخراج النتيجة بصيغة JSON متوافقة مع الـ validation الخاص بك
+        responseMimeType: 'application/json',
       },
     });
 
-    const outputText = response.choices[0]?.message?.content;
+    const outputText = response.text;
 
     if (!outputText) {
       throw new AIHttpError(502, 'The AI did not return a response. Please try again.', 'EMPTY_AI_RESPONSE');
@@ -141,13 +117,12 @@ export async function generateTutorReply(input: {
     return validateTutorReply(parsed);
   } catch (error) {
     if (error instanceof AIHttpError) throw error;
-    console.error('[Talis AI text generation]', error);
+    console.error('[Talis Gemini AI text generation]', error);
     throw new AIHttpError(502, 'The AI tutor is temporarily unavailable. Your message was kept; please retry.', 'AI_PROVIDER_ERROR');
   }
 }
 
-
-
-export function getOpenAIClientForImages(): OpenAI {
-  return getOpenAIClient();
+// دالة العميل للصور إذا كنت تستخدمها لاحقاً لتوليد الرسوم التوضيحية
+export function getGeminiClientForImages(): GoogleGenAI {
+  return getGeminiClient();
 }
