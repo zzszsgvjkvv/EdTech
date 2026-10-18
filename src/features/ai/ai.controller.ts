@@ -114,7 +114,9 @@ export async function updateCategory(req: Request, res: Response): Promise<void>
   const category = await StudentAICategory.findOneAndUpdate(
     { _id: id, userId },
     { $set: { name, slug } },
-    { new: true, runValidators: true },
+   
+      { returnDocument: 'after', runValidators: true }, 
+
   );
   if (!category) throw new AIHttpError(404, 'Learning category was not found.');
 
