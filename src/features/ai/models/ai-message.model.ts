@@ -61,6 +61,9 @@ AIMessageSchema.index(
   },
 );
 
-const cachedModel = models.AIMessage as Model<AIMessageRecord> | undefined;
-export const AIMessage: Model<AIMessageRecord> =
-  cachedModel ?? model<AIMessageRecord>('AIMessage', AIMessageSchema);
+if (models.AIMessage) {
+  delete models.AIMessage;
+}
+
+export const AIMessage: Model<AIMessageRecord> = 
+  model<AIMessageRecord>('AIMessage', AIMessageSchema);

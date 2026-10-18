@@ -15,10 +15,10 @@ export function asyncHandler(
 }
 
 export function getUserId(req: Request): Types.ObjectId {
-  if (!req.authUser?.userId || !Types.ObjectId.isValid(req.authUser.userId)) {
+  if (!req.user?._id || !Types.ObjectId.isValid(req.user?._id)) {
     throw new AIHttpError(401, 'Authenticated user is missing or invalid.');
   }
-  return new Types.ObjectId(req.authUser.userId);
+  return new Types.ObjectId(req.user?._id);
 }
 
 export function requireString(

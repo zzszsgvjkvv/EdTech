@@ -108,32 +108,36 @@ export async function generateTutorReply(input: {
   ].join('\n');
 
   try {
-    const response = await getOpenAIClient().responses.create({
+    // تصحيح: استخدام الدالة الرسمية الصحيحة chat.completions.create
+    const response = await getOpenAIClient().chat.completions.create({
       model,
-      instructions,
-      input: history.map((message) => ({
-        role: message.role,
-        content: message.content,
-      })),
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'talis_tutor_reply',
-          strict: true,
-          schema: tutorResponseSchema,
-        },
+      // دمج التوجيهات (System) مع سياق المحادثة (History)
+      messages: [
+        { role: 'system', content: instructions },
+        ...history.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      ],
+      // تصحيح هيكلية الـ Structured Outputs (JSON Schema)
+      response_format: {
+        type: 'json_object', // أو 'json_schema' بناءً على تفضيلك، لكن تأكد من دعم الموديل المختار له
       },
     });
 
-    if (!response.output_text) {
+    const outputText = response.choices[0]?.message?.content;
+
+    if (!outputText) {
       throw new AIHttpError(502, 'The AI did not return a response. Please try again.', 'EMPTY_AI_RESPONSE');
     }
+
     let parsed: unknown;
     try {
-      parsed = JSON.parse(response.output_text);
+      parsed = JSON.parse(outputText);
     } catch {
       throw new AIHttpError(502, 'The AI returned an unreadable response. Please try again.', 'INVALID_AI_JSON');
     }
+    
     return validateTutorReply(parsed);
   } catch (error) {
     if (error instanceof AIHttpError) throw error;
@@ -141,6 +145,8 @@ export async function generateTutorReply(input: {
     throw new AIHttpError(502, 'The AI tutor is temporarily unavailable. Your message was kept; please retry.', 'AI_PROVIDER_ERROR');
   }
 }
+
+
 
 export function getOpenAIClientForImages(): OpenAI {
   return getOpenAIClient();

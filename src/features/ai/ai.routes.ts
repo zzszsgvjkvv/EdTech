@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { requireAIAuth, requireStudentRole } from '../../middleware/require-ai-auth';
 import { aiUserRateLimit } from '../../middleware/ai-user-rate-limit';
 import {
   createCategory,
@@ -15,6 +14,7 @@ import {
   updateConversation,
 } from './ai.controller';
 import { aiErrorHandler, asyncHandler } from './ai.utils';
+import { authenticate, requireRole } from '../../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -30,7 +30,7 @@ const illustrationRateLimit = aiUserRateLimit({
 });
 
 // All AI endpoints are authenticated and student-only.
-router.use(requireAIAuth, requireStudentRole);
+router.use(authenticate, requireRole(['teacher', 'admin','student']));
 
 // Learning groups/categories.
 router.get('/categories', asyncHandler(getCategories));
