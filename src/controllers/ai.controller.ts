@@ -46,18 +46,155 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
         res.status(500).json({ message: error.message || 'Error fetching categories' });
     }
 };
+interface CategoryParams {
+    id: string;
+}
 
+interface UpdateCategoryBody {
+    name?: string;
+    description?: string;
+    icon?: string;
+}
+
+/* ==========================================
+   ========================================== */
+export const updateCategory = async (
+    req: Request<CategoryParams, {}, UpdateCategoryBody>, 
+    res: Response
+): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { name, description, icon } = req.body;
+
+        if (!Types.ObjectId.isValid(id)) {
+            res.status(400).json({ success: false, message: 'Invalid category ID format' });
+            return;
+        }
+
+        const updateData: Partial<UpdateCategoryBody> = {};
+        if (name !== undefined) updateData.name = name.trim();
+        if (description !== undefined) updateData.description = description.trim();
+        if (icon !== undefined) updateData.icon = icon.trim();
+
+        if (updateData.name === '') {
+            res.status(400).json({ success: false, message: 'Category name cannot be empty' });
+            return;
+        }
+
+        const updatedCategory = await AICategory.findByIdAndUpdate(
+            id,
+            { $set: updateData },
+            { new: true, runValidators: true }
+        ).lean();
+
+        if (!updatedCategory) {
+            res.status(404).json({ success: false, message: 'Category not found' });
+            return;
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Category updated successfully', 
+            data: updatedCategory 
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Error updating category' 
+        });
+    }
+};
+
+
+export const deleteCategory = async (
+    req: Request<CategoryParams>, 
+    res: Response
+): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!Types.ObjectId.isValid(id)) {
+            res.status(400).json({ success: false, message: 'Invalid category ID format' });
+            return;
+        }
+
+        const deletedCategory = await AICategory.findByIdAndDelete(id).lean();
+
+        if (!deletedCategory) {
+            res.status(404).json({ success: false, message: 'Category not found' });
+            return;
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Category deleted successfully',
+            data: { id } 
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Error deleting category' 
+        });
+    }
+};
+export const createCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { name, description, icon } = req.body;
+
+        if (!name || name.trim() === '') {
+            res.status(400).json({ success: false, message: 'Category name is required' });
+            return;
+        }
+
+        const existingCategory = await AICategory.findOne({ name: name.trim() });
+        if (existingCategory) {
+            res.status(400).json({ success: false, message: 'Category name already exists' });
+            return;
+        }
+
+        const newCategory = new AICategory({
+            name: name.trim(),
+            description: description?.trim(),
+            icon: icon?.trim()
+        });
+
+        await newCategory.save();
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'Category created successfully', 
+            data: newCategory 
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Error creating category' 
+        });
+    }
+};
 /**
  * @desc    Get student conversations (optional category filter)
  * @route   GET /api/student/ai/conversations?categoryId=...
  */
 export const getConversations = async (req: Request, res: Response): Promise<void> => {
     try {
-        const studentId = new Types.ObjectId(req.user?._id);
+        if (!req.user?._id) {
+            res.status(401).json({ success: false, message: 'Unauthorized: User not found' });
+            return;
+        }
+
+        const studentId = new Types.ObjectId(req.user._id);
         const { categoryId } = req.query;
 
         const filter: any = { studentId };
         if (categoryId && typeof categoryId === 'string') {
+            if (!Types.ObjectId.isValid(categoryId)) {
+                res.status(400).json({ success: false, message: 'Invalid category ID format' });
+                return;
+            }
             filter.categoryId = new Types.ObjectId(categoryId);
         }
 
@@ -72,13 +209,70 @@ export const getConversations = async (req: Request, res: Response): Promise<voi
  * @desc    Create a new AI conversation
  * @route   POST /api/student/ai/conversations
  */
+
+
+export const deleteConversation = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        if (!req.user?._id) {
+            res.status(401).json({ success: false, message: 'Unauthorized: User not found' });
+            return;
+        }
+
+        if (!id || Array.isArray(id) || !Types.ObjectId.isValid(id)) {
+            res.status(400).json({ success: false, message: 'Invalid conversation ID format' });
+            return;
+        }
+
+        const studentId = new Types.ObjectId(req.user._id);
+        const conversationObjectId = new Types.ObjectId(id);
+
+        const deletedConversation = await AIConversation.findOneAndDelete({
+            _id: conversationObjectId,
+            studentId: studentId 
+        }).lean();
+
+        if (!deletedConversation) {
+            res.status(404).json({ 
+                success: false, 
+                message: 'Conversation not found or you do not have permission to delete it' 
+            });
+            return;
+        }
+
+        // 5. إرجاع استجابة النجاح
+        res.status(200).json({ 
+            success: true, 
+            message: 'Conversation deleted successfully',
+            data: { id } // نرجع الـ ID الممسوح لتحديث الـ UI في الـ Frontend بسهولة
+        });
+
+    } catch (error: any) {
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Error deleting conversation' 
+        });
+    }
+};
+
 export const createConversation = async (req: Request, res: Response): Promise<void> => {
     try {
-        const studentId = new Types.ObjectId(req.user?._id);
+        if (!req.user?._id) {
+            res.status(401).json({ success: false, message: 'Unauthorized: User not found' });
+            return;
+        }
+
+        const studentId = new Types.ObjectId(req.user._id);
         const { categoryId, title } = req.body;
 
         if (!categoryId || !title) {
             res.status(400).json({ message: 'categoryId and title are required.' });
+            return;
+        }
+
+        if (!Types.ObjectId.isValid(categoryId)) {
+            res.status(400).json({ success: false, message: 'Invalid category ID format' });
             return;
         }
 

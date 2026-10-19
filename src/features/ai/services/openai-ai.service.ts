@@ -1,7 +1,6 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import { AIHttpError } from '../ai.errors';
 import { MAX_MESSAGES_PER_CONTEXT } from '../ai.constants';
-
 
 export interface TutorHistoryMessage {
   role: 'user' | 'assistant';
@@ -29,10 +28,31 @@ function getGeminiClient(): GoogleGenAI {
   if (!apiKey) {
     throw new AIHttpError(503, 'AI service is not configured. Set GEMINI_API_KEY on the server.');
   }
-  // تهيئة عميل جيميناي الرسمي باستخدام الحزمة المحدثة @google/genai
   aiClient = new GoogleGenAI({ apiKey });
   return aiClient;
 }
+
+const tutorResponseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    reply: { type: Type.STRING },
+    vocabularyToSave: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          word: { type: Type.STRING },
+          translation: { type: Type.STRING },
+          exampleSentence: { type: Type.STRING }, 
+          category: { type: Type.STRING },
+          targetLanguage: { type: Type.STRING },
+        },
+        required: ['word', 'translation', 'exampleSentence', 'category', 'targetLanguage'],
+      },
+    },
+  },
+  required: ['reply', 'vocabularyToSave'],
+};
 
 function validateTutorReply(value: unknown): TutorReply {
   if (!value || typeof value !== 'object') {
@@ -47,11 +67,18 @@ function validateTutorReply(value: unknown): TutorReply {
     if (!raw || typeof raw !== 'object') return [];
     const item = raw as Record<string, unknown>;
     if (typeof item.word !== 'string' || !item.word.trim() || typeof item.translation !== 'string') return [];
+    
+    const checkNull = (val: unknown): string | null => {
+      if (typeof val !== 'string') return null;
+      const trimmed = val.trim();
+      return (trimmed === '' || trimmed.toLowerCase() === 'null') ? null : trimmed;
+    };
+
     return [{
       word: item.word.trim().slice(0, 120),
       translation: item.translation.trim().slice(0, 500),
-      exampleSentence: typeof item.exampleSentence === 'string' ? item.exampleSentence.slice(0, 1000) : null,
-      category: typeof item.category === 'string' ? item.category.slice(0, 80) : null,
+      exampleSentence: checkNull(item.exampleSentence)?.slice(0, 1000) || null,
+      category: checkNull(item.category)?.slice(0, 80) || null,
       targetLanguage: typeof item.targetLanguage === 'string' && item.targetLanguage.trim()
         ? item.targetLanguage.trim().slice(0, 40)
         : 'English',
@@ -67,37 +94,34 @@ export async function generateTutorReply(input: {
   targetLanguage: string;
   nativeLanguage?: string | null;
 }): Promise<TutorReply> {
-  const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash';
+  const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash'; // تم التحديث لـ gemini-2.5 المستقر والافتراضي حالياً لعام 2026
 
   const history = input.history.slice(-MAX_MESSAGES_PER_CONTEXT);
   const instructions = [
     'You are Talis, a patient and encouraging personal language tutor.',
     `The student's target language is ${input.targetLanguage}.`,
-    input.nativeLanguage ? `The student's native language is ${input.nativeLanguage}. Use it for translations when useful: ${input.nativeLanguage}.` : 'Use simple explanations and include a translation when the student asks for one.',
+    input.nativeLanguage ? `The student's native language is ${input.nativeLanguage}. Use it for translations when useful.` : 'Use simple explanations and include a translation when the student asks for one.',
     `The current learning topic is ${input.categoryName}. Keep examples relevant to this topic when appropriate.`,
     'Correct the student gently. Explain why a correction is useful without shaming the learner.',
     'Return at most three vocabulary items in vocabularyToSave, and only when the student explicitly asks to learn, define, translate, explain, or save a word or expression. Do not extract random words from ordinary chat.',
     'If the student is practicing a role-play, continue the role-play naturally rather than turning every reply into a lesson.',
     'If no vocabulary should be saved, return an empty vocabularyToSave array.',
+    'If exampleSentence or category are not available, strictly fill their values with the string "null".',
     'Do not claim a vocabulary item has been saved. The app will save candidates after this response.',
   ].join('\n');
 
   try {
-    // استدعاء جيميناي لتوليد المحتوى المهيكل
     const response = await getGeminiClient().models.generateContent({
       model,
-      contents: [
-        // في جيميناي يتم تحويل دور المساعد من assistant إلى model
-        ...history.map((message) => ({
-          role: message.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: message.content }],
-        })),
-      ],
+      contents: history.map((message) => ({
+        role: message.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: message.content }],
+      })),
       config: {
-        // تمرير التعليمات الصارمة للنظام كـ systemInstruction منفصل ومستقل عن مصفوفة الـ contents
         systemInstruction: instructions,
-        // إجبار الموديل على إخراج النتيجة بصيغة JSON متوافقة مع الـ validation الخاص بك
+        // إجبار الموديل برمجياً عبر الـ SDK على إرسال الـ JSON المخطط
         responseMimeType: 'application/json',
+        responseSchema: tutorResponseSchema, 
       },
     });
 
@@ -122,7 +146,6 @@ export async function generateTutorReply(input: {
   }
 }
 
-// دالة العميل للصور إذا كنت تستخدمها لاحقاً لتوليد الرسوم التوضيحية
 export function getGeminiClientForImages(): GoogleGenAI {
   return getGeminiClient();
 }

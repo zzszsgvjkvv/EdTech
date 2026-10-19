@@ -10,10 +10,12 @@ import { generateStickFigureImage } from '../controllers/aiVocab.controller';
 import { upload } from '../config/cloudinary.config';
 import { getTutors, getTutorById } from '../controllers/tutor.controller';
 import { 
+  updateCategory,deleteCategory,
   getCategories, 
   getConversations, 
   createConversation, 
-  getMessages 
+  deleteConversation,
+  getMessages ,createCategory
 } from '../controllers/ai.controller';
 import { sendAiMessage } from '../controllers/ai.controller';
 import aiRoutes from '../features/ai/ai.routes'; // adjust relative path to your project
@@ -40,8 +42,12 @@ const optionalAuth = (req: any, res: any, next: any) => {
 router.use(authenticate, requireRole(['student']));
 
 router.get('/categories', getCategories);
+router.post('/categories', createCategory);
+router.delete('/categories', deleteCategory);
+router.patch('/categories', updateCategory);
 router.get('/conversations', getConversations);
 router.post('/conversations', createConversation);
+router.post('/conversations', deleteConversation);
 router.get('/conversations/:id/messages', getMessages);
 router.post('/conversations/:id/messages', sendAiMessage);
 
