@@ -94,7 +94,7 @@ export async function generateTutorReply(input: {
   targetLanguage: string;
   nativeLanguage?: string | null;
 }): Promise<TutorReply> {
-  const model = process.env.GEMINI_TEXT_MODEL || 'gemini-3.8-flash'; // تم التحديث لـ gemini-2.5 المستقر والافتراضي حالياً لعام 2026
+  const model = process.env.GEMINI_TEXT_MODEL || 'gemini-2.5-flash';
 
   const history = input.history.slice(-MAX_MESSAGES_PER_CONTEXT);
   const instructions = [
@@ -103,47 +103,57 @@ export async function generateTutorReply(input: {
     input.nativeLanguage ? `The student's native language is ${input.nativeLanguage}. Use it for translations when useful.` : 'Use simple explanations and include a translation when the student asks for one.',
     `The current learning topic is ${input.categoryName}. Keep examples relevant to this topic when appropriate.`,
     'Correct the student gently. Explain why a correction is useful without shaming the learner.',
-    'Return at most three vocabulary items in vocabularyToSave, and only when the student explicitly asks to learn, define, translate, explain, or save a word or expression. Do not extract random words from ordinary chat.',
-    'If the student is practicing a role-play, continue the role-play naturally rather than turning every reply into a lesson.',
+    'Return at most three vocabulary items in vocabularyToSave, and only when the student explicitly asks to learn, define, translate, explain, or save a word or expression.',
     'If no vocabulary should be saved, return an empty vocabularyToSave array.',
     'If exampleSentence or category are not available, strictly fill their values with the string "null".',
-    'Do not claim a vocabulary item has been saved. The app will save candidates after this response.',
   ].join('\n');
 
-  try {
-    const response = await getGeminiClient().models.generateContent({
-      model,
-      contents: history.map((message) => ({
-        role: message.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: message.content }],
-      })),
-      config: {
-        systemInstruction: instructions,
-        // إجبار الموديل برمجياً عبر الـ SDK على إرسال الـ JSON المخطط
-        responseMimeType: 'application/json',
-        responseSchema: tutorResponseSchema, 
-      },
-    });
+  // 🔄 آلية إعادة المحاولة التلقائية (Retry Mechanism)
+  const maxRetries = 3;
+  let delay = 1500; // الانتظار لـ 1.5 ثانية قبل إعادة المحاولة
 
-    const outputText = response.text;
-
-    if (!outputText) {
-      throw new AIHttpError(502, 'The AI did not return a response. Please try again.', 'EMPTY_AI_RESPONSE');
-    }
-
-    let parsed: unknown;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      parsed = JSON.parse(outputText);
-    } catch {
-      throw new AIHttpError(502, 'The AI returned an unreadable response. Please try again.', 'INVALID_AI_JSON');
+      const response = await getGeminiClient().models.generateContent({
+        model,
+        contents: history.map((message) => ({
+          role: message.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: message.content || '...' }],
+        })),
+        config: {
+          systemInstruction: instructions,
+          responseMimeType: 'application/json',
+          responseSchema: tutorResponseSchema, 
+        },
+      });
+
+      const outputText = response.text;
+      if (!outputText) {
+        throw new AIHttpError(502, 'The AI did not return a response.', 'EMPTY_AI_RESPONSE');
+      }
+
+      let parsed = JSON.parse(outputText);
+      return validateTutorReply(parsed);
+
+    } catch (error: any) {
+      // إذا كان الخطأ بسبب الضغط الزائد (503) أو الحصة (429) ولم ننتهِ من المحاولات الـ 3
+      if ((error.status === 503 || error.status === 429) && attempt < maxRetries) {
+        console.warn(`⚠️ Gemini busy (Status ${error.status}). Retrying attempt ${attempt}/${maxRetries} in ${delay}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        delay *= 2; // مضاعفة وقت الانتظار في المحاولة التالية (Exponential Backoff)
+        continue;
+      }
+
+      // إذا استمر الخطأ بعد 3 محاولات، يتم رميه رسمياً
+      if (error instanceof AIHttpError) throw error;
+      console.error('[Talis Gemini AI text generation]', error);
+      throw new AIHttpError(502, 'The AI tutor is temporarily busy under high demand. Please try again in a moment.', 'AI_PROVIDER_ERROR');
     }
-    
-    return validateTutorReply(parsed);
-  } catch (error) {
-    if (error instanceof AIHttpError) throw error;
-    console.error('[Talis Gemini AI text generation]', error);
-    throw new AIHttpError(502, 'The AI tutor is temporarily unavailable. Your message was kept; please retry.', 'AI_PROVIDER_ERROR');
   }
+  
+  throw new AIHttpError(502, 'AI service unavailable');
+
+
 }
 
 export function getGeminiClientForImages(): GoogleGenAI {

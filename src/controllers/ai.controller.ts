@@ -84,7 +84,7 @@ export const updateCategory = async (
         const updatedCategory = await AICategory.findByIdAndUpdate(
             id,
             { $set: updateData },
-            { new: true, runValidators: true }
+           { returnDocument: 'after', runValidators: true }
         ).lean();
 
         if (!updatedCategory) {

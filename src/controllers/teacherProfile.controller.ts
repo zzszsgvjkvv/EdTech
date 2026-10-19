@@ -27,7 +27,7 @@ export const updateTeacherProfile = async (req: Request, res: Response): Promise
           ...(isOnline !== undefined && { isOnline }),
         },
       },
-      { new: true, upsert: true, runValidators: true }
+{ returnDocument: 'after', runValidators: true }
     );
 
     res.status(200).json({
