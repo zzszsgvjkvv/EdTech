@@ -1,5 +1,4 @@
 import express from 'express';
-import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 
@@ -7,28 +6,22 @@ import publicRoutes from './routes/public.routes';
 import authRoutes from './routes/auth.routes';
 import teacherRoutes from './routes/teacher.routes';
 import studentRoutes from './routes/student.routes';
-
+import postRoutes from './routes/post.routes'; // <-- Don't forget to mount your post routes!
 import notification from './routes/notification.routes';
-
 
 dotenv.config();
 
 const app = express();
+
 app.use(express.json());
 app.use(cors());
 
-// Route 
-app.use('/notification',notification ); 
-app.use('/api/public', publicRoutes);   // Unprotected
-app.use('/api/auth', authRoutes);       // Login / Register
-app.use('/api/teacher', teacherRoutes); // Authenticated + Authorized ('teacher')
+// Routes
+app.use('/notification', notification); 
+app.use('/api/public', publicRoutes);   
+app.use('/api/auth', authRoutes);       
+app.use('/api/teacher', teacherRoutes); 
 app.use('/api/student', studentRoutes);
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/talis-db';
+app.use('/api/posts', postRoutes);       // <-- Added Class Feed Post routes
 
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((err) => console.error('Database connection failed:', err));
+export default app; 

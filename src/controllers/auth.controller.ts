@@ -19,7 +19,10 @@ const salt = await bcrypt.genSalt(10);
 const hashedPassword = await bcrypt.hash(password, salt);
     const user = await User.create({ name, email,   password: password, // Use the hashed password
  role, nativeLanguage, targetLanguage });
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET,
+       { expiresIn: '7d' }
+
+    );
 
     res.status(201).json({
       message: 'User registered successfully',
