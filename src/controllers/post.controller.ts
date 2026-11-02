@@ -1,11 +1,7 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
-import { Post } from '../models/post.model';
+import { Post, IPost } from '../models/post.model';
 
-/**
- * @desc    Get all class feed posts (newest first)
- * @route   GET /api/posts
- */
 export const getPosts = async (req: Request, res: Response): Promise<void> => {
   try {
     const posts = await Post.find()
@@ -20,10 +16,6 @@ export const getPosts = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-/**
- * @desc    Create a new post (Teacher or Student) and broadcast via WebSocket
- * @route   POST /api/posts
- */
 export const createPost = async (req: Request, res: Response): Promise<void> => {
   try {
     if (!req.user?._id) {
@@ -38,19 +30,19 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const newPost = await Post.create({
+    // Explicitly type created post to satisfy TypeScript
+    const newPost: IPost = await Post.create({
       authorId: new Types.ObjectId(req.user._id),
-      authorRole: req.user.role, // 'teacher' or 'student'
+      authorRole: req.user.role,
       content: content.trim(),
       mediaUrl: mediaUrl?.trim(),
     });
 
-    // Populate author details before broadcasting
     const populatedPost = await Post.findById(newPost._id)
       .populate('authorId', 'name email role')
       .lean();
 
-    // 🚀 Real-time Broadcast via Socket.io
+    // Broadcast in real-time via Socket.io
     const io = req.app.get('io');
     if (io) {
       io.emit('new_post', populatedPost);

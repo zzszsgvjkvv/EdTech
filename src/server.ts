@@ -1,19 +1,23 @@
 import http from 'http';
 import { Server } from 'socket.io';
-import app from './app'; // Your express app
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import app from './app'; // Import default app correctly
+
+dotenv.config();
 
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*', // Adjust for production security if needed
+    origin: '*',
     methods: ['GET', 'POST'],
   },
 });
 
-// Save io instance in app so controllers can trigger real-time broadcasts
+// Save io instance in app so controllers can trigger real-time broadcasts via req.app.get('io')
 app.set('io', io);
 
-io.on('connection', (socket:any) => {
+io.on('connection', (socket) => {
   console.log(`🔌 Client connected to Real-Time Feed: ${socket.id}`);
 
   socket.on('disconnect', () => {
@@ -21,7 +25,12 @@ io.on('connection', (socket:any) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} with WebSockets enabled`);
-});
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/talis-db';
+
+mongoose.connect(MONGO_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+    server.listen(PORT, () => console.log(`Server running on port ${PORT} with WebSockets enabled`));
+  })
+  .catch((err) => console.error('Database connection failed:', err));
