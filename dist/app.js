@@ -4,30 +4,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const mongoose_1 = __importDefault(require("mongoose"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const public_routes_1 = __importDefault(require("./routes/public.routes"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const teacher_routes_1 = __importDefault(require("./routes/teacher.routes"));
 const student_routes_1 = __importDefault(require("./routes/student.routes"));
+const post_routes_1 = __importDefault(require("./routes/post.routes")); // <-- Don't forget to mount your post routes!
 const notification_routes_1 = __importDefault(require("./routes/notification.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use(express_1.default.json());
 app.use((0, cors_1.default)());
-// Route 
+// Routes
 app.use('/notification', notification_routes_1.default);
-app.use('/api/public', public_routes_1.default); // Unprotected
-app.use('/api/auth', auth_routes_1.default); // Login / Register
-app.use('/api/teacher', teacher_routes_1.default); // Authenticated + Authorized ('teacher')
+app.use('/api/public', public_routes_1.default);
+app.use('/api/auth', auth_routes_1.default);
+app.use('/api/teacher', teacher_routes_1.default);
 app.use('/api/student', student_routes_1.default);
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/talis-db';
-mongoose_1.default.connect(MONGO_URI)
-    .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-})
-    .catch((err) => console.error('Database connection failed:', err));
+app.use('/api/posts', post_routes_1.default); // <-- Added Class Feed Post routes
+exports.default = app;
 //# sourceMappingURL=app.js.map

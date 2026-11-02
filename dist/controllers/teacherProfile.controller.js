@@ -23,7 +23,7 @@ const updateTeacherProfile = async (req, res) => {
                 ...(availability && { availability }),
                 ...(isOnline !== undefined && { isOnline }),
             },
-        }, { new: true, upsert: true, runValidators: true });
+        }, { returnDocument: 'after', runValidators: true });
         res.status(200).json({
             success: true,
             message: 'Teacher profile and availability updated successfully',

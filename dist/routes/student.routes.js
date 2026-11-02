@@ -24,8 +24,12 @@ const optionalAuth = (req, res, next) => {
 // Apply student authentication and role check to all AI routes
 router.use(auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)(['student']));
 router.get('/categories', ai_controller_1.getCategories);
+router.post('/categories', ai_controller_1.createCategory);
+router.delete('/categories', ai_controller_1.deleteCategory);
+router.patch('/categories', ai_controller_1.updateCategory);
 router.get('/conversations', ai_controller_1.getConversations);
 router.post('/conversations', ai_controller_1.createConversation);
+router.post('/conversations', ai_controller_1.deleteConversation);
 router.get('/conversations/:id/messages', ai_controller_1.getMessages);
 router.post('/conversations/:id/messages', ai_controller_2.sendAiMessage);
 router.use('/ai', ai_routes_1.default);
