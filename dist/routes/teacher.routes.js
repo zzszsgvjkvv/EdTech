@@ -7,6 +7,8 @@ const auth_middleware_1 = require("../middlewares/auth.middleware");
 const profileGuard_middleware_1 = require("../middlewares/profileGuard.middleware");
 const vocabulary_controller_1 = require("../controllers/vocabulary.controller");
 const cloudinary_config_1 = require("../config/cloudinary.config");
+// import { authenticate, authorizeRole } from '../middlewares/auth.middleware'; // Assuming standard auth middleware
+const tutor_tutoring_controller_1 = require("../controllers/tutor-tutoring.controller");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate, (0, auth_middleware_1.authorize)('teacher'));
 router.use((0, auth_middleware_1.requireRole)(['teacher', 'admin']));
@@ -14,6 +16,12 @@ router.use((0, auth_middleware_1.requireRole)(['teacher', 'admin']));
 router.post('/vocabulary', cloudinary_config_1.upload.single('image'), vocabulary_controller_1.saveVocabulary);
 // 🆕 Teacher Profile & Availability route
 // Base Guard: All endpoints below require a valid token and 'teacher' role
+router.use(auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)(['teacher']));
+router.put('/tutoring/profile', tutor_tutoring_controller_1.upsertTutorProfile);
+router.post('/tutoring/availability', tutor_tutoring_controller_1.createAvailabilitySlot);
+router.get('/tutoring/appointments', tutor_tutoring_controller_1.getTeacherAppointments);
+router.patch('/tutoring/appointments/:id/status', tutor_tutoring_controller_1.updateAppointmentStatus);
+router.get('/tutoring/appointments/:id/chat', tutor_tutoring_controller_1.getTeacherAppointmentChat);
 // Check current onboarding progress (helps frontend route the user)
 router.get('/onboarding-status', teacherProfile_controller_1.getOnboardingStatus);
 // STEP 2: Fill profile details (headline, rate, bio)

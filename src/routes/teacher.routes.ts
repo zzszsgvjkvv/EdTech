@@ -5,6 +5,19 @@ import { authenticate, authorize, requireRole  } from '../middlewares/auth.middl
 import { requireCompletedProfile } from '../middlewares/profileGuard.middleware';
 import { saveVocabulary } from '../controllers/vocabulary.controller';
 import { upload } from '../config/cloudinary.config';
+
+
+
+// import { authenticate, authorizeRole } from '../middlewares/auth.middleware'; // Assuming standard auth middleware
+import {
+  upsertTutorProfile,
+  createAvailabilitySlot,
+  getTeacherAppointments,
+  updateAppointmentStatus,
+  getTeacherAppointmentChat,
+} from '../controllers/tutor-tutoring.controller';
+
+
 const router = Router();
  
 
@@ -18,7 +31,13 @@ router.post('/vocabulary', upload.single('image'), saveVocabulary);
 
 
 // Base Guard: All endpoints below require a valid token and 'teacher' role
+router.use(authenticate, requireRole(['teacher']));
 
+router.put('/tutoring/profile', upsertTutorProfile);
+router.post('/tutoring/availability', createAvailabilitySlot);
+router.get('/tutoring/appointments', getTeacherAppointments);
+router.patch('/tutoring/appointments/:id/status', updateAppointmentStatus);
+router.get('/tutoring/appointments/:id/chat', getTeacherAppointmentChat);
 // Check current onboarding progress (helps frontend route the user)
 router.get('/onboarding-status', getOnboardingStatus);
 
@@ -29,3 +48,16 @@ router.put('/profile', updateTeacherProfile);
 router.post('/availability', requireCompletedProfile, updateAvailability);
 
 export default router;
+
+
+
+
+
+
+
+
+
+
+
+
+
