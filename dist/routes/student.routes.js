@@ -11,6 +11,7 @@ const aiVocab_controller_1 = require("../controllers/aiVocab.controller");
 const cloudinary_config_1 = require("../config/cloudinary.config");
 const tutor_controller_1 = require("../controllers/tutor.controller");
 const ai_controller_1 = require("../controllers/ai.controller");
+const student_tutoring_controller_1 = require("../controllers/student-tutoring.controller");
 const ai_controller_2 = require("../controllers/ai.controller");
 const ai_routes_1 = __importDefault(require("../features/ai/ai.routes")); // adjust relative path to your project
 const router = (0, express_1.Router)();
@@ -32,6 +33,11 @@ router.post('/conversations', ai_controller_1.createConversation);
 router.post('/conversations', ai_controller_1.deleteConversation);
 router.get('/conversations/:id/messages', ai_controller_1.getMessages);
 router.post('/conversations/:id/messages', ai_controller_2.sendAiMessage);
+router.get('/tutoring/tutors', student_tutoring_controller_1.browseTutors);
+router.get('/tutoring/tutors/:tutorId/availability', student_tutoring_controller_1.getTutorAvailability);
+router.post('/tutoring/appointments', student_tutoring_controller_1.bookAppointment);
+router.get('/tutoring/appointments', student_tutoring_controller_1.getStudentAppointments);
+router.get('/tutoring/appointments/:id/chat', student_tutoring_controller_1.getStudentAppointmentChat);
 router.use('/ai', ai_routes_1.default);
 // ==========================================
 // PROTECTED STUDENT FEATURES (Requires Authentication)

@@ -17,6 +17,13 @@ import {
   deleteConversation,
   getMessages ,createCategory
 } from '../controllers/ai.controller';
+import {
+  browseTutors,
+  getTutorAvailability,
+  bookAppointment,
+  getStudentAppointments,
+  getStudentAppointmentChat,
+} from '../controllers/student-tutoring.controller';
 import { sendAiMessage } from '../controllers/ai.controller';
 import aiRoutes from '../features/ai/ai.routes'; // adjust relative path to your project
 
@@ -50,6 +57,13 @@ router.post('/conversations', createConversation);
 router.post('/conversations', deleteConversation);
 router.get('/conversations/:id/messages', getMessages);
 router.post('/conversations/:id/messages', sendAiMessage);
+
+
+router.get('/tutoring/tutors', browseTutors);
+router.get('/tutoring/tutors/:tutorId/availability', getTutorAvailability);
+router.post('/tutoring/appointments', bookAppointment);
+router.get('/tutoring/appointments', getStudentAppointments);
+router.get('/tutoring/appointments/:id/chat', getStudentAppointmentChat);
 
 router.use('/ai', aiRoutes);
 // ==========================================
