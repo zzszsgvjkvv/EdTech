@@ -23,25 +23,62 @@ export const upsertTutorProfile = async (req: Request, res: Response): Promise<v
 };
 
 // 2. Specify Available Time Slots
-export const createAvailabilitySlot = async (req: Request, res: Response): Promise<void> => {
+export const createRecurringAvailability = async (req: Request, res: Response): Promise<void> => {
   try {
     const tutorId = req.user?._id;
-    const { startTime, endTime } = req.body;
+    const { dayOfWeek, startHour, endHour, weeksAhead = 4 } = req.body;
+    // dayOfWeek: 0 = Sunday, 6 = Saturday
+    // startHour: 10 (10 AM), endHour: 22 (10 PM)
+    // weeksAhead: How many future weeks to generate slots for (default 4)
 
-    if (!startTime || !endTime) {
-      res.status(400).json({ success: false, message: 'Start time and end time are required.' });
+    if (dayOfWeek === undefined || startHour === undefined || endHour === undefined) {
+      res.status(400).json({ success: false, message: 'dayOfWeek, startHour, and endHour are required.' });
       return;
     }
 
-    const slot = await AvailabilitySlot.create({
-      tutorId: new Types.ObjectId(tutorId),
-      startTime: new Date(startTime),
-      endTime: new Date(endTime),
-    });
+    const createdSlots = [];
+    const now = new Date();
 
-    res.status(201).json({ success: true, message: 'Availability slot created', data: slot });
+    // Loop through upcoming weeks
+    for (let w = 0; w < weeksAhead; w++) {
+      const targetDate = new Date();
+      // Find the next occurrence of dayOfWeek
+      const currentDay = targetDate.getDay();
+      const distance = (dayOfWeek + 7 - currentDay) % 7;
+      targetDate.setDate(targetDate.getDate() + distance + (w * 7));
+
+      // Generate hourly blocks between startHour and endHour
+      for (let hour = startHour; hour < endHour; hour++) {
+        const startTime = new Date(targetDate);
+        startTime.setHours(hour, 0, 0, 0);
+
+        const endTime = new Date(targetDate);
+        endTime.setHours(hour + 1, 0, 0, 0);
+
+        // Only create future slots
+        if (startTime > now) {
+          try {
+            const slot = await AvailabilitySlot.create({
+              tutorId: new Types.ObjectId(tutorId),
+              startTime,
+              endTime,
+              isBooked: false,
+            });
+            createdSlots.push(slot);
+          } catch (err) {
+            // Ignore duplicate/overlapping slot errors gracefully and continue loop
+          }
+        }
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Successfully generated ${createdSlots.length} availability slots for the upcoming weeks.`,
+      data: createdSlots,
+    });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message || 'Error creating slot (Overlap or invalid data)' });
+    res.status(500).json({ success: false, message: error.message || 'Error generating recurring slots' });
   }
 };
 
