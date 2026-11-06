@@ -23,62 +23,67 @@ export const upsertTutorProfile = async (req: Request, res: Response): Promise<v
 };
 
 // 2. Specify Available Time Slots
-export const createRecurringAvailability = async (req: Request, res: Response): Promise<void> => {
+
+export const createMultiRangeAvailability = async (req: Request, res: Response): Promise<void> => {
   try {
     const tutorId = req.user?._id;
-    const { dayOfWeek, startHour, endHour, weeksAhead = 4 } = req.body;
-    // dayOfWeek: 0 = Sunday, 6 = Saturday
-    // startHour: 10 (10 AM), endHour: 22 (10 PM)
-    // weeksAhead: How many future weeks to generate slots for (default 4)
+    const { date, timeRanges, slotDurationMinutes = 60 } = req.body;
+    // date: "2026-11-07"
+    // timeRanges: [{ startTime: "10:00", endTime: "11:00" }, { startTime: "14:00", endTime: "17:00" }, ...]
 
-    if (dayOfWeek === undefined || startHour === undefined || endHour === undefined) {
-      res.status(400).json({ success: false, message: 'dayOfWeek, startHour, and endHour are required.' });
+    if (!date || !timeRanges || !Array.isArray(timeRanges) || timeRanges.length === 0) {
+      res.status(400).json({ success: false, message: 'Date and an array of timeRanges are required.' });
       return;
     }
 
     const createdSlots = [];
-    const now = new Date();
 
-    // Loop through upcoming weeks
-    for (let w = 0; w < weeksAhead; w++) {
-      const targetDate = new Date();
-      // Find the next occurrence of dayOfWeek
-      const currentDay = targetDate.getDay();
-      const distance = (dayOfWeek + 7 - currentDay) % 7;
-      targetDate.setDate(targetDate.getDate() + distance + (w * 7));
+    for (const range of timeRanges) {
+      const { startTime, endTime } = range ;
+      if (!startTime || !endTime) continue;
 
-      // Generate hourly blocks between startHour and endHour
-      for (let hour = startHour; hour < endHour; hour++) {
-        const startTime = new Date(targetDate);
-        startTime.setHours(hour, 0, 0, 0);
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
 
-        const endTime = new Date(targetDate);
-        endTime.setHours(hour + 1, 0, 0, 0);
+      const rangeStart = new Date(date);
+      rangeStart.setHours(startHour, startMinute, 0, 0);
 
-        // Only create future slots
-        if (startTime > now) {
+      const rangeEnd = new Date(date);
+      rangeEnd.setHours(endHour, endMinute, 0, 0);
+
+      if (rangeStart >= rangeEnd) continue;
+
+      let currentStart = new Date(rangeStart);
+
+      // Slice each specific range into bookable session blocks
+      while (currentStart < rangeEnd) {
+        const currentEnd = new Date(currentStart);
+        currentEnd.setMinutes(currentEnd.getMinutes() + slotDurationMinutes);
+
+        if (currentEnd <= rangeEnd) {
           try {
             const slot = await AvailabilitySlot.create({
               tutorId: new Types.ObjectId(tutorId),
-              startTime,
-              endTime,
+              startTime: new Date(currentStart),
+              endTime: new Date(currentEnd),
               isBooked: false,
             });
             createdSlots.push(slot);
           } catch (err) {
-            // Ignore duplicate/overlapping slot errors gracefully and continue loop
+            // Skips duplicates gracefully if a slot already exists
           }
         }
+        currentStart = new Date(currentEnd);
       }
     }
 
     res.status(201).json({
       success: true,
-      message: `Successfully generated ${createdSlots.length} availability slots for the upcoming weeks.`,
+      message: `Successfully created ${createdSlots.length} availability slots across the specified ranges.`,
       data: createdSlots,
     });
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message || 'Error generating recurring slots' });
+    res.status(500).json({ success: false, message: error.message || 'Error creating multi-range availability' });
   }
 };
 

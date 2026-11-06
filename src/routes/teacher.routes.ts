@@ -11,7 +11,7 @@ import { upload } from '../config/cloudinary.config';
 // import { authenticate, authorizeRole } from '../middlewares/auth.middleware'; // Assuming standard auth middleware
 import {
   upsertTutorProfile,
-  createAvailabilitySlot,
+  createMultiRangeAvailability,
   getTeacherAppointments,
   updateAppointmentStatus,
   getTeacherAppointmentChat,
@@ -34,7 +34,7 @@ router.post('/vocabulary', upload.single('image'), saveVocabulary);
 router.use(authenticate, requireRole(['teacher']));
 
 router.put('/tutoring/profile', upsertTutorProfile);
-router.post('/tutoring/availability', createAvailabilitySlot);
+router.post('/tutoring/availability', createMultiRangeAvailability);
 router.get('/tutoring/appointments', getTeacherAppointments);
 router.patch('/tutoring/appointments/:id/status', updateAppointmentStatus);
 router.get('/tutoring/appointments/:id/chat', getTeacherAppointmentChat);
