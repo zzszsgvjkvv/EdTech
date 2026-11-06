@@ -18,7 +18,7 @@ router.post('/vocabulary', cloudinary_config_1.upload.single('image'), vocabular
 // Base Guard: All endpoints below require a valid token and 'teacher' role
 router.use(auth_middleware_1.authenticate, (0, auth_middleware_1.requireRole)(['teacher']));
 router.put('/tutoring/profile', tutor_tutoring_controller_1.upsertTutorProfile);
-router.post('/tutoring/availability', tutor_tutoring_controller_1.createAvailabilitySlot);
+router.post('/tutoring/availability', tutor_tutoring_controller_1.createMultiRangeAvailability);
 router.get('/tutoring/appointments', tutor_tutoring_controller_1.getTeacherAppointments);
 router.patch('/tutoring/appointments/:id/status', tutor_tutoring_controller_1.updateAppointmentStatus);
 router.get('/tutoring/appointments/:id/chat', tutor_tutoring_controller_1.getTeacherAppointmentChat);
